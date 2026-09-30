@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shorten a link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f6;--ink:#12303f;--muted:#5c7482;--line:#cfdce4;--card:#fff;--accent:#2f5bea;--code:#f2a93b;--bad:#c2372f;--ok:#1f8a5b}
+@media (prefers-color-scheme:dark){:root{--bg:#10222d;--ink:#e6f0f5;--muted:#8fa7b5;--line:#25404f;--card:#16303e;--accent:#7b9bff;--code:#f2b658;--bad:#ff8a80;--ok:#5fd0a0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.5}
+main{max-width:640px;margin:0 auto;padding:56px 20px 80px}
+h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 28px}
+form{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1 1 260px;font:inherit;padding:14px 16px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:10px}
+.go{padding:14px 22px;background:var(--accent);color:#fff}
+.go:disabled{opacity:.6;cursor:wait}
+:is(input,button,summary,a):focus-visible{outline:3px solid var(--code);outline-offset:2px}
+.msg{min-height:1.5em;margin:12px 0 0;color:var(--bad);font-size:.95rem}
+.result{display:none;margin-top:20px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:20px}
+.result.show{display:block}
+.was{color:var(--muted);font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:line-through;transform-origin:left;animation:squash .6s ease-out}
+@keyframes squash{from{transform:scaleX(1.6);opacity:0}to{transform:none;opacity:1}}
+.short{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.short a{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none;word-break:break-all}
+.short a b{background:var(--code);color:#12303f;padding:0 6px;border-radius:6px}
+.copy{padding:8px 14px;background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.copy.done{border-color:var(--ok);color:var(--ok)}
+h2{font-size:1.1rem;margin:40px 0 10px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+li div{min-width:0}
+li a{font-weight:600;color:var(--accent);text-decoration:none}
+li span{display:block;color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+li button{background:none;color:var(--muted);padding:6px 10px;border:1px solid var(--line)}
+.empty{color:var(--muted)}
+details{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted);font-size:.92rem}
+summary{cursor:pointer;color:var(--ink);font-weight:600}
+details label{display:block;margin:12px 0 4px}
+details input{width:100%;font-size:.95rem;padding:10px 12px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;color:var(--ink);font-size:.82rem}
+@media (prefers-reduced-motion:reduce){.was{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Paste a long link.<br>Get a short one.</h1>
+  <p class="sub">No terminal needed. Your links are saved on this device.</p>
+
+  <form id="f">
+    <input id="url" type="url" required placeholder="https://example.com/a/very/long/page" aria-label="Long URL" autofocus>
+    <button class="go" id="go">Shorten link</button>
+  </form>
+  <p class="msg" id="msg" role="alert"></p>
+
+  <section class="result" id="res" aria-live="polite">
+    <div class="was" id="was"></div>
+    <div class="short">
+      <a id="out" href="#" target="_blank" rel="noopener"></a>
+      <button class="copy" id="copy" type="button">Copy link</button>
+    </div>
+  </section>
+
+  <h2>Your links</h2>
+  <ul id="list"></ul>
+
+  <details>
+    <summary>Connection settings</summary>
+    <label for="base">Server address (leave blank to use same origin)</label>
+    <input id="base" value="" placeholder="https://yourdomain.com">
+    <label>Same request from the terminal</label>
+    <pre id="curl"></pre>
+  </details>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = "shortener.links", BASE_KEY = "shortener.base";
+let links = [];
+try { links = JSON.parse(localStorage.getItem(KEY)) || []; } catch {}
+try { $("base").value = localStorage.getItem(BASE_KEY) ?? ""; } catch {}
+
+// If base is empty, use window.location.origin so short URLs look right
+const base = () => { const v = $("base").value.trim().replace(/\/+$/, ""); return v || window.location.origin; };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(links.slice(0, 20))); } catch {} };
+const setCurl = () => $("curl").textContent =
+`curl -X POST ${base()}/shorten \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "${$("url").value || "https://example.com"}"}'`;
+
+function render() {
+  const ul = $("list"); ul.innerHTML = "";
+  if (!links.length) { ul.innerHTML = '<li class="empty">Links you shorten will show up here.</li>'; return; }
+  links.forEach((l, i) => {
+    const li = document.createElement("li");
+    const d = document.createElement("div");
+    const a = document.createElement("a"); a.href = l.short; a.target = "_blank"; a.rel = "noopener"; a.textContent = l.short;
+    const s = document.createElement("span"); s.textContent = l.long;
+    d.append(a, s);
+    const b = document.createElement("button"); b.textContent = "Remove"; b.onclick = () => { links.splice(i, 1); save(); render(); };
+    li.append(d, b); ul.append(li);
+  });
+}
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const long = $("url").value.trim(), msg = $("msg"), go = $("go");
+  msg.textContent = ""; go.disabled = true; go.textContent = "Shortening…";
+  try {
+    try { localStorage.setItem(BASE_KEY, base()); } catch {}
+    const r = await fetch(base() + "/shorten", {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: long})
+    });
+    if (r.status === 429) throw new Error("Too many requests. Wait a minute, then try again.");
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `The server returned an error (${r.status}).`);
+    const short = data.short_url || `${base()}/${data.short_code}`;
+    $("was").textContent = long; $("out").href = short;
+    $("out").innerHTML = ""; const code = short.split("/").pop();
+    $("out").append(short.slice(0, short.length - code.length));
+    const b = document.createElement("b"); b.textContent = code; $("out").append(b);
+    const res = $("res"); res.classList.remove("show"); void res.offsetWidth; res.classList.add("show");
+    $("copy").textContent = "Copy link"; $("copy").classList.remove("done");
+    links = [{short, long}, ...links.filter(l => l.short !== short)]; save(); render();
+  } catch (err) {
+    msg.textContent = err instanceof TypeError
+      ? `Can't reach ${base()}. Check that Docker is running, and that the server allows requests from this page.`
+      : err.message;
+  } finally { go.disabled = false; go.textContent = "Shorten link"; }
+});
+
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("out").href); $("copy").textContent = "Copied"; $("copy").classList.add("done"); }
+  catch { $("copy").textContent = "Press Ctrl+C on the link"; }
+};
+$("url").addEventListener("input", setCurl); $("base").addEventListener("input", setCurl);
+setCurl(); render();
+</script>
+</body>
+</html>

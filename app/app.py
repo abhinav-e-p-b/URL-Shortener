@@ -3,10 +3,13 @@ import string
 from functools import wraps
 
 from flask import Flask, request, redirect, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import redis
 import psycopg2
 
 app = Flask(__name__)
+# Trust the X-Forwarded-* headers set by nginx so URLs are built correctly
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Define the 62 characters used for short codes (0-9, a-z, A-Z)
 ALPHABET = string.digits + string.ascii_lowercase + string.ascii_uppercase
@@ -92,7 +95,7 @@ def shorten_url():
     # Cache the mapping for fast redirects later
     cache.set(short_code, long_url)
 
-    return jsonify({"short_url": f"http://localhost:5000/{short_code}", "short_code": short_code}), 201
+    return jsonify({"short_url": f"{request.host_url.rstrip('/')}/{short_code}", "short_code": short_code}), 201
 
 @app.route("/health")
 def health():

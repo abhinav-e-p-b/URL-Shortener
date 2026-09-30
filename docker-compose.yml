@@ -1,8 +1,20 @@
 services:
+  # Nginx: serves the frontend and reverse-proxies API calls to Flask
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  # Flask + gunicorn: handles /shorten and /<short_code> routes
   web:
     build: ./app
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -15,7 +27,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
+  # PostgreSQL: permanent URL storage
   db:
     image: postgres:16-alpine
     environment:
@@ -30,7 +44,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
+  # Redis: fast short-code cache
   redis:
     image: redis:7-alpine
     healthcheck:
@@ -38,6 +54,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres_data:
