@@ -2,11 +2,6 @@
 
 # URL Shortener System Design
 
-**Project Link:** [View Project](https://nextwork.ai/projects/02a35a5b-1d8b-43ee-9982-6ceef44145e5)
-
-**Author:** Abhinave P.B  
-**Email:** abhinavepb12@gmail.com
-
 ---
 
 ![Image](https://nextwork.ai/ecstatic_white_trusty_gecko/uploads/02a35a5b-1d8b-43ee-9982-6ceef44145e5_kqswhxb2)
@@ -116,5 +111,3 @@ This project took me approximately one hour. The most challenging part was runni
 I did this project today to learn how to build and run a multi-service backend application using Flask, PostgreSQL, Redis, and Docker. Another skill I want to learn is deploying and scaling backend applications in the cloud.
 
 ---
-
-*Built with [NextWork](https://nextwork.ai) - [View this project](https://nextwork.ai/projects/02a35a5b-1d8b-43ee-9982-6ceef44145e5)*
