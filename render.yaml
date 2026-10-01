@@ -32,9 +32,9 @@ services:
         fromDatabase:
           name: url-shortener-db
           property: password
-      # Set to your frontend URL to restrict CORS (e.g. https://url-shortener-frontend.onrender.com)
+      # Restrict CORS to the deployed frontend origin only
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://url-shortener-1-m70j.onrender.com"
 
   # Static frontend — serves index.html (no build step needed)
   - type: web
