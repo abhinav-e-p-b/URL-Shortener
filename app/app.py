@@ -136,6 +136,10 @@ def health():
 
 @app.route("/<short_code>")
 def redirect_url(short_code):
+    # Reject anything that contains non-base62 characters (e.g. favicon.ico, robots.txt)
+    if not all(c in ALPHABET for c in short_code):
+        return jsonify({"error": "Short URL not found"}), 404
+
     # Check the fast cache first
     long_url = cache.get(short_code)
 
