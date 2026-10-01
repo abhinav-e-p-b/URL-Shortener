@@ -17,12 +17,17 @@ CORS(app, origins=os.environ.get("CORS_ORIGIN", "*").split(","))
 # Define the 62 characters used for short codes (0-9, a-z, A-Z)
 ALPHABET = string.digits + string.ascii_lowercase + string.ascii_uppercase
 
-# Connect to Redis for fast lookups
-cache = redis.Redis(
-    host=os.environ.get("REDIS_HOST", "redis"),
-    port=int(os.environ.get("REDIS_PORT", 6379)),
-    decode_responses=True,
-)
+# Connect to Redis for fast lookups.
+# Prefer REDIS_URL (auto-injected by Render) over individual host/port env vars.
+_redis_url = os.environ.get("REDIS_URL")
+if _redis_url:
+    cache = redis.from_url(_redis_url, decode_responses=True)
+else:
+    cache = redis.Redis(
+        host=os.environ.get("REDIS_HOST", "redis"),
+        port=int(os.environ.get("REDIS_PORT", 6379)),
+        decode_responses=True,
+    )
 
 
 def get_db():
