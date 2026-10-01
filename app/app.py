@@ -26,7 +26,12 @@ cache = redis.Redis(
 
 
 def get_db():
-    """Connect to PostgreSQL for permanent storage."""
+    """Connect to PostgreSQL for permanent storage.
+    Prefers DATABASE_URL (auto-injected by Render) over individual env vars
+    so the correct database name is always used regardless of environment."""
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
     return psycopg2.connect(
         host=os.environ.get("POSTGRES_HOST", "db"),
         database=os.environ.get("POSTGRES_DB", "urlshortener"),
