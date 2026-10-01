@@ -3,6 +3,7 @@ import string
 from functools import wraps
 
 from flask import Flask, request, redirect, jsonify
+from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 import redis
 import psycopg2
@@ -10,6 +11,8 @@ import psycopg2
 app = Flask(__name__)
 # Trust the X-Forwarded-* headers set by nginx so URLs are built correctly
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+# Allow cross-origin requests from the frontend (configured via env var for flexibility)
+CORS(app, origins=os.environ.get("CORS_ORIGIN", "*").split(","))
 
 # Define the 62 characters used for short codes (0-9, a-z, A-Z)
 ALPHABET = string.digits + string.ascii_lowercase + string.ascii_uppercase
@@ -30,6 +33,26 @@ def get_db():
         user=os.environ.get("POSTGRES_USER", "postgres"),
         password=os.environ.get("POSTGRES_PASSWORD", "postgres"),
     )
+
+def init_db():
+    """Create the urls table if it doesn't exist yet.
+    Needed on Render because managed PostgreSQL won't auto-run init.sql."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS urls (
+            id SERIAL PRIMARY KEY,
+            long_url TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Ensure the schema exists before serving any requests
+with app.app_context():
+    init_db()
     
 def base62_encode(num):
     """Convert a database ID into a short alphanumeric string."""

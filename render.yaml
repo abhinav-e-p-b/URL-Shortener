@@ -1,0 +1,58 @@
+services:
+  # Flask + Gunicorn backend — handles /shorten and /<short_code>
+  - type: web
+    name: url-shortener-api
+    runtime: docker
+    dockerfilePath: ./app/Dockerfile
+    dockerContext: ./app
+    envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: url-shortener-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: url-shortener-redis
+          property: port
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: url-shortener-db
+          property: host
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: url-shortener-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: url-shortener-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: url-shortener-db
+          property: password
+      # Set to your frontend URL to restrict CORS (e.g. https://url-shortener-frontend.onrender.com)
+      - key: CORS_ORIGIN
+        value: "*"
+
+  # Static frontend — serves index.html (no build step needed)
+  - type: web
+    name: url-shortener-frontend
+    runtime: static
+    staticPublishPath: ./frontend
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+
+databases:
+  # Managed PostgreSQL (free tier expires after 90 days — upgrade for production)
+  - name: url-shortener-db
+    databaseName: urlshortener
+    plan: free
+
+  # Managed Redis cache
+  - name: url-shortener-redis
+    plan: free
+    ipAllowList: []

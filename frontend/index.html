@@ -84,8 +84,10 @@ let links = [];
 try { links = JSON.parse(localStorage.getItem(KEY)) || []; } catch {}
 try { $("base").value = localStorage.getItem(BASE_KEY) ?? ""; } catch {}
 
-// If base is empty, use window.location.origin so short URLs look right
-const base = () => { const v = $("base").value.trim().replace(/\/+$/, ""); return v || window.location.origin; };
+// Backend API URL — update this to your Render Web Service URL after deploying
+const API_BASE = "https://url-shortener-api.onrender.com";
+// If base is empty, fall back to API_BASE (works for cross-origin Render deployment)
+const base = () => { const v = $("base").value.trim().replace(/\/+$/, ""); return v || API_BASE; };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(links.slice(0, 20))); } catch {} };
 const setCurl = () => $("curl").textContent =
 `curl -X POST ${base()}/shorten \\
