@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">URL Shortener</string>
+    <string name="home_title">URL Shortener</string>
+    <string name="history_title">History</string>
+    <string name="settings_title">Settings</string>
+    <string name="paste_url_hint">Paste a long URL here…</string>
+    <string name="shorten_button">Shorten</string>
+    <string name="copy_button">Copy</string>
+    <string name="open_button">Open</string>
+    <string name="delete_button">Delete</string>
+    <string name="copied_toast">Short URL copied to clipboard</string>
+    <string name="empty_history">No links shortened yet</string>
+    <string name="api_base_url_label">API Base URL</string>
+    <string name="save_settings">Save</string>
+    <string name="error_empty_url">Please enter a URL</string>
+    <string name="error_invalid_url">Please enter a valid URL starting with http:// or https://</string>
+    <string name="error_rate_limit">Rate limit reached. Please wait a moment and try again.</string>
+    <string name="error_network">No network connection. Check your internet and try again.</string>
+    <string name="error_unknown">Something went wrong. Please try again.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+</resources>

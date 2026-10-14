@@ -1,6 +1,6 @@
 # 🔗 URL Shortener
 
-A production-ready URL shortener built with **Flask, PostgreSQL, Redis, Nginx and Docker**. Paste a long link, get a short one. Redirects are served from a Redis cache with PostgreSQL as the source of truth.
+A production-ready URL shortener built with **Flask, PostgreSQL, Redis, Nginx and Docker**. Paste a long link, get a short one. Redirects are served from a Redis cache with PostgreSQL as the source of truth. Also ships a native **Android app** (Kotlin + Jetpack Compose) that connects to the same API.
 
 ## Features
 
@@ -9,7 +9,8 @@ A production-ready URL shortener built with **Flask, PostgreSQL, Redis, Nginx an
 - Per-IP rate limiting in Redis (atomic `INCR` + expiry, default 10 requests/min)
 - Input validation: only `http`/`https` URLs, max 2048 characters
 - Health endpoint (`/health`) that checks both Redis and PostgreSQL
-- Responsive UI with dark mode, copy buttons and a saved-links list (stored in the browser)
+- Responsive web UI with dark mode, copy buttons and a saved-links list (stored in the browser)
+- Native Android app (Kotlin + Jetpack Compose) with local history via Room and Chrome Custom Tabs
 - Hardened containers: non-root app user, Gunicorn, Nginx security headers, Redis memory cap
 
 ## Architecture
@@ -21,9 +22,10 @@ flowchart LR
     N -->|/shorten, /:code, /health| A[Flask + Gunicorn]
     A --> P[(PostgreSQL)]
     A --> R[(Redis cache)]
+    M["📱 Android App\n(Kotlin + Compose)"] -->|POST /shorten\nHTTPS| A
 ```
 
-Only Nginx is exposed publicly; Flask, PostgreSQL and Redis stay on the internal Docker network.
+Only Nginx is exposed publicly; Flask, PostgreSQL and Redis stay on the internal Docker network. The Android app connects directly to the deployed API over HTTPS.
 
 ## Quick start
 
@@ -52,7 +54,7 @@ curl -X POST http://localhost/shorten -H "Content-Type: application/json" \
 ## Configuration
 
 | Variable | Default | Purpose |
-|----------|---------|---------|
+|----------|---------|---------||
 | `POSTGRES_PASSWORD` | required | Database password (set in `.env`) |
 | `POSTGRES_USER` / `POSTGRES_DB` | `postgres` / `urlshortener` | Database credentials |
 | `DATABASE_URL`, `REDIS_URL` | – | Override individual host settings (Render, Railway) |
@@ -62,24 +64,101 @@ curl -X POST http://localhost/shorten -H "Content-Type: application/json" \
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for Oracle Cloud, Render and Railway guides, HTTPS setup and a pre-launch checklist.
+See [DEPLOYMENT.md](resources/DEPLOYMENT.md) for Oracle Cloud, Render and Railway guides, HTTPS setup and a pre-launch checklist.
 
 ## Project structure
 
 ```
-app/        Flask API, Dockerfile, schema
-frontend/   Single-page UI
-nginx/      Reverse proxy config + image
+app/                          Flask API, Dockerfile, schema
+frontend/                     Single-page UI (HTML/CSS/JS)
+nginx/                        Reverse proxy config + image
+android/                      Native Android app (Kotlin + Jetpack Compose)
+resources/                    Deployment guides and documentation
+android_tech_stack.md         Android tech stack overview
+ANDROID_BUILD_CHANGELOG.md   Android environment setup & build log
 docker-compose.yml, render.yaml, .env.example
 ```
 
+## Android App
+
+A native Android client built with **Kotlin + Jetpack Compose** that connects to the same Flask API over HTTPS — no backend changes required. The API is already CORS-enabled, JSON in/out, rate-limited, and served over HTTPS on Render.
+
+See [`android_tech_stack.md`](android_tech_stack.md) for the full tech-stack breakdown and [`ANDROID_BUILD_CHANGELOG.md`](ANDROID_BUILD_CHANGELOG.md) for the environment setup and build log.
+
+### Android App Architecture
+
+```mermaid
+flowchart TD
+    A["🏠 Home Screen\n(Paste URL → Shorten)"] --> B["📋 Result Card\n(Short URL + Copy button)"]
+    A --> C["📜 History Screen\n(Room DB list)"]
+    A --> D["⚙️ Settings Screen\n(API base URL via DataStore)"]
+    B --> E["🌐 Open in Chrome Custom Tab"]
+    C --> F["🗑️ Delete link from history"]
+```
+
+### Android Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Language | **Kotlin** |
+| UI | **Jetpack Compose + Material 3** |
+| Networking | **Retrofit 2 + OkHttp 4** |
+| Local DB | **Room** (link history) |
+| Preferences | **DataStore** (API base URL setting) |
+| DI | **Hilt** |
+| Async | **Kotlin Coroutines + StateFlow** |
+| Browser | **Chrome Custom Tabs** |
+
+### Building the APK
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+# Output: android\app\build\outputs\apk\debug\app-debug.apk
+```
+
+> **Note:** The Gradle build uses regional mirrors (Tencent / Huawei) for dependency resolution. See `ANDROID_BUILD_CHANGELOG.md` for details on the environment setup.
+
+## Releases & Packages
+
+### Web App (Docker)
+
+The web stack (Flask + Nginx + PostgreSQL + Redis) is distributed as a **Docker Compose** project. Images are built from source — no pre-built images are published to a registry.
+
+To run the latest version:
+
+```bash
+git clone https://github.com/abhinav-e-p-b/URL-Shortener.git
+cd URL-Shortener
+docker compose up --build
+```
+
+### Android App (APK)
+
+Pre-built debug APKs are **not yet published** to the GitHub Releases page. Build from source:
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+Once ready for distribution, a signed release APK will be published on the [GitHub Releases](https://github.com/abhinav-e-p-b/URL-Shortener/releases) page. A Play Store listing is planned as a future milestone.
+
+### Version History
+
+| Tag | Description |
+|-----|-------------|
+| `v1.0` | Initial web release — Flask + PostgreSQL + Redis + Nginx, deployed on Render |
+| `v1.1` *(planned)* | Android app — Kotlin + Jetpack Compose native client |
+| `v1.2` *(planned)* | Custom aliases, link expiry, click analytics |
+
 ## Roadmap
 
-Custom aliases, link expiry, click analytics, and non-sequential codes (current codes are sequential and therefore guessable).
+Custom aliases, link expiry, click analytics, non-sequential codes (current codes are sequential and therefore guessable), and Play Store release of the Android app.
 
 ## Background
 
-Started as a [NextWork](https://nextwork.ai) learning project (see `resources/`) and extended with Nginx, rate limiting, validation and cloud deployment.
+Started as a [NextWork](https://nextwork.ai) learning project (see `resources/`) and extended with Nginx, rate limiting, validation, cloud deployment, and a native Android client.
 
 ---
 
@@ -93,13 +172,13 @@ The original step-by-step write-up from the NextWork project, kept for reference
 
 #### What we're building and why
 
-In this project, I’m building a scalable URL shortener using Flask, PostgreSQL, Redis, and Docker so that I can learn how backend services, databases, caching, and containerized applications work together in a real-world system.
+In this project, I'm building a scalable URL shortener using Flask, PostgreSQL, Redis, and Docker so that I can learn how backend services, databases, caching, and containerized applications work together in a real-world system.
 
 ### Setting Up the Environment
 
 #### Environment setup goals
 
-In this step, I’m setting up my development environment with a terminal, Docker Desktop, and Cursor so that I can build, run, and manage the different services of my URL shortener project.
+In this step, I'm setting up my development environment with a terminal, Docker Desktop, and Cursor so that I can build, run, and manage the different services of my URL shortener project.
 
 ![Image](https://nextwork.ai/ecstatic_white_trusty_gecko/uploads/02a35a5b-1d8b-43ee-9982-6ceef44145e5_qj4lc3tb)
 
@@ -112,7 +191,7 @@ The three services are Flask API, PostgreSQL, and Redis. The first handles API r
 
 #### Architecture design goals
 
-In this step, I’m creating the Docker Compose configuration, container setup, Python dependencies, and PostgreSQL database schema so that I can define and run the three-service URL shortener architecture consistently.
+In this step, I'm creating the Docker Compose configuration, container setup, Python dependencies, and PostgreSQL database schema so that I can define and run the three-service URL shortener architecture consistently.
 
 
 ![Image](https://nextwork.ai/ecstatic_white_trusty_gecko/uploads/02a35a5b-1d8b-43ee-9982-6ceef44145e5_pnungqem)
@@ -132,7 +211,7 @@ I chose PostgreSQL as the database. Its role is to store the URL mappings perman
 
 #### Application logic goals
 
-In this step, I’m writing the Flask API logic in `app.py` so that I can create short URLs from long URLs, redirect users to the original URLs, and connect the API with PostgreSQL and Redis.
+In this step, I'm writing the Flask API logic in `app.py` so that I can create short URLs from long URLs, redirect users to the original URLs, and connect the API with PostgreSQL and Redis.
 
 #### The URL shortening flow
 
@@ -148,7 +227,7 @@ When someone visits a short URL, the app first checks Redis for the short code t
 
 #### Launch goals
 
-In this step, I’m starting the Flask API, PostgreSQL database, and Redis cache using Docker Compose so that I can run all three services together and verify that they are healthy and communicating correctly.
+In this step, I'm starting the Flask API, PostgreSQL database, and Redis cache using Docker Compose so that I can run all three services together and verify that they are healthy and communicating correctly.
 
 
 ![Image](https://nextwork.ai/ecstatic_white_trusty_gecko/uploads/02a35a5b-1d8b-43ee-9982-6ceef44145e5_3w4aoken)
