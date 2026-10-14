@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -94,18 +95,17 @@ fun HomeScreen(
         if (msg != null) snackbarHostState.showSnackbar(msg)
     }
 
-    // Snackbar host floats above content — position it separately
-    SnackbarHost(snackbarHostState)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    // Box lets the SnackbarHost float at the bottom over the scrollable column
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // Header label
         Text(
             text = stringResource(R.string.home_title),
@@ -189,7 +189,14 @@ fun HomeScreen(
                 )
             }
         }
-    }
+        } // end Column
+
+        // Snackbar anchored to the bottom of the Box
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    } // end Box
 }
 
 @Composable

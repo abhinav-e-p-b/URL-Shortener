@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,18 +30,17 @@ sealed class ShortenResult {
 
 /**
  * Repository — single source of truth for the app.
- * Coordinates:
- *  - Retrofit API calls (remote)
- *  - Room inserts/reads (local history)
- *  - DataStore base URL changes (rebuilds Retrofit on-the-fly)
  *
- * Why raw ResponseBody instead of typed Gson conversion?
- * Render's free tier returns HTTP 200 with an EMPTY body while the
- * service is cold-starting. If GsonConverterFactory tries to auto-parse
- * that empty body as ShortenResponse it throws:
- *   "MalformedJsonException: End of input at line 1 column 1 path $"
- * By receiving ResponseBody we can safely read the string first,
- * check if it's non-empty, and only then parse it with Gson.
+ * Why raw ResponseBody?
+ * Render's free tier returns HTTP 200 with an EMPTY body while cold-starting.
+ * GsonConverterFactory would throw "End of input at line 1 column 1 path $"
+ * trying to auto-parse it. We read the raw string first and check it's non-empty
+ * before handing it to Gson.
+ *
+ * Cold-start strategy:
+ *  1. Wake the server: poll GET /health with a SHORT timeout (8 s per call)
+ *     every 3 s for up to 60 s — fast failure, no 45-second stalls.
+ *  2. Once healthy, POST /shorten (up to 3 total POST attempts).
  */
 @Singleton
 class UrlShortenerRepository @Inject constructor(
@@ -49,46 +49,63 @@ class UrlShortenerRepository @Inject constructor(
     private val gson: Gson,
     private val okHttpClient: OkHttpClient
 ) {
-    /**
-     * Lazily created API instance. Rebuilt when the base URL changes in Settings.
-     */
+    // Main API — built with the user's saved base URL and the full 45 s timeout
     private var currentBaseUrl: String = ""
     private var api: UrlShortenerApi? = null
+
+    // Health-check API — same base URL but only 8 s per call so polls are fast
+    private var healthApi: UrlShortenerApi? = null
+
+    private val shortTimeoutClient: OkHttpClient by lazy {
+        okHttpClient.newBuilder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .writeTimeout(8, TimeUnit.SECONDS)
+            .build()
+    }
 
     private suspend fun getApi(): UrlShortenerApi {
         val baseUrl = preferencesRepository.baseUrlFlow.first()
         if (api == null || baseUrl != currentBaseUrl) {
             currentBaseUrl = baseUrl
-            api = Retrofit.Builder()
-                .baseUrl(baseUrl)
-                .client(okHttpClient)
-                // ScalarsConverterFactory not needed since we use ResponseBody directly,
-                // but keep it to satisfy Retrofit's converter chain for @Body serialization.
-                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create(gson))
-                .build()
-                .create(UrlShortenerApi::class.java)
+            api = buildApi(baseUrl, okHttpClient)
+            healthApi = buildApi(baseUrl, shortTimeoutClient)
         }
         return api!!
     }
 
+    private fun buildApi(baseUrl: String, client: OkHttpClient): UrlShortenerApi =
+        Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create(gson))
+            .build()
+            .create(UrlShortenerApi::class.java)
+
     /**
      * Shorten a URL via the Flask API, then persist the result to Room.
      *
-     * Strategy for Render cold-starts:
-     *  1. POST /shorten
-     *  2. If the response is 2xx but the body is EMPTY, Render is still waking up.
-     *     Ping /health until it returns "healthy", then retry /shorten (up to 3 times).
-     *
-     * @param longUrl the original long URL
-     * @return [ShortenResult] — Success, RateLimited, or Error
+     * Flow:
+     *  1. Wake server — poll /health (8 s timeout each) until healthy or 60 s elapsed.
+     *  2. POST /shorten — if body is still empty, retry up to 3 times with 2 s gap.
      */
     suspend fun shorten(longUrl: String): ShortenResult {
         return try {
+            // Always ensure the API object (and healthApi) is initialised
+            getApi()
+
+            // Step 1: wake the server before trying to shorten
+            val serverReady = waitForHealth(maxWaitMs = 60_000)
+            if (!serverReady) {
+                return ShortenResult.Error("Server is taking too long to wake up. Please try again.")
+            }
+
+            // Step 2: POST /shorten — retry up to 3 times if we still get an empty body
             shortenWithRetry(longUrl, attemptsLeft = 3)
         } catch (e: java.net.UnknownHostException) {
             ShortenResult.Error("NO_NETWORK")
         } catch (e: java.net.SocketTimeoutException) {
-            ShortenResult.Error("Request timed out. Is the server running?")
+            ShortenResult.Error("Connection timed out. Please check your internet.")
         } catch (e: Exception) {
             ShortenResult.Error("Unexpected error: ${e.message}")
         }
@@ -99,12 +116,11 @@ class UrlShortenerRepository @Inject constructor(
         val rawBody = response.body()?.string()?.trim()
 
         return when {
-            // ── Success path ──────────────────────────────────────────────────
+            // ── Success ───────────────────────────────────────────────────────
             response.isSuccessful && !rawBody.isNullOrEmpty() -> {
                 val parsed = tryParseSuccess(rawBody)
-                    ?: return ShortenResult.Error("Unexpected response format from server")
+                    ?: return ShortenResult.Error("Unexpected server response. Please try again.")
 
-                // Persist to local history
                 dao.insert(
                     UrlHistoryEntity(
                         longUrl = longUrl,
@@ -115,15 +131,12 @@ class UrlShortenerRepository @Inject constructor(
                 ShortenResult.Success(parsed.shortUrl, parsed.shortCode)
             }
 
-            // ── Empty body on 2xx → Render cold-start ────────────────────────
-            // The service is waking up. Wait for /health to return healthy,
-            // then retry the shorten call.
+            // ── Empty body after health passed → transient — retry ─────────
             response.isSuccessful && rawBody.isNullOrEmpty() -> {
                 if (attemptsLeft <= 0) {
-                    return ShortenResult.Error("Server is still waking up. Please try again in a moment.")
+                    return ShortenResult.Error("Server woke up but returned no data. Please try again.")
                 }
-                waitForHealth(maxWaitMs = 30_000)
-                delay(1_000) // brief pause before retry
+                delay(2_000)
                 shortenWithRetry(longUrl, attemptsLeft - 1)
             }
 
@@ -137,10 +150,10 @@ class UrlShortenerRepository @Inject constructor(
                     try {
                         gson.fromJson(errorRaw, ApiErrorResponse::class.java).error
                     } catch (e: JsonSyntaxException) {
-                        "HTTP ${response.code()}"
+                        "Server error (HTTP ${response.code()})"
                     }
                 } else {
-                    "HTTP ${response.code()}"
+                    "Server error (HTTP ${response.code()})"
                 }
                 ShortenResult.Error(message)
             }
@@ -148,24 +161,27 @@ class UrlShortenerRepository @Inject constructor(
     }
 
     /**
-     * Poll GET /health until the server responds with a non-empty body
-     * (meaning Flask + Redis + Postgres are all up), or until [maxWaitMs] elapses.
+     * Poll GET /health using [healthApi] (8 s timeout per call) every 3 s.
+     * Returns true as soon as a non-empty 2xx body is received.
+     * Returns false if [maxWaitMs] elapses with no healthy response.
+     *
+     * Using a short per-call timeout means each poll fails fast so the
+     * 60 s budget actually covers ~20 polls instead of stalling for 45 s each.
      */
-    private suspend fun waitForHealth(maxWaitMs: Long) {
+    private suspend fun waitForHealth(maxWaitMs: Long): Boolean {
         val intervalMs = 3_000L
         val deadline = System.currentTimeMillis() + maxWaitMs
         while (System.currentTimeMillis() < deadline) {
             try {
-                val healthResponse = getApi().health()
-                val body = healthResponse.body()?.string()?.trim()
-                if (healthResponse.isSuccessful && !body.isNullOrEmpty()) {
-                    return // server is healthy
-                }
+                val r = healthApi!!.health()
+                val body = r.body()?.string()?.trim()
+                if (r.isSuccessful && !body.isNullOrEmpty()) return true
             } catch (_: Exception) {
-                // server still waking — keep polling
+                // still waking — swallow and retry
             }
             delay(intervalMs)
         }
+        return false
     }
 
     /** Parse the raw JSON string into ShortenResponse, or null on failure */
