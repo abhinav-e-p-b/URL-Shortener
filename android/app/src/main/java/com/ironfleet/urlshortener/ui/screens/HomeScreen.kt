@@ -31,18 +31,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,8 +62,12 @@ import com.ironfleet.urlshortener.viewmodel.HomeViewModel
 /**
  * Home screen — the main URL shortening interface.
  * Mirrors the functionality of the web frontend's index.html.
+ *
+ * NOTE: This composable does NOT create its own Scaffold/TopAppBar.
+ * The outer Scaffold in UrlShortenerNavHost owns the app chrome.
+ * We only consume innerPadding to avoid the content being hidden
+ * behind the bottom navigation bar.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     innerPadding: PaddingValues,
@@ -94,94 +94,99 @@ fun HomeScreen(
         if (msg != null) snackbarHostState.showSnackbar(msg)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.home_title)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { scaffoldPadding ->
-        Column(
+    // Snackbar host floats above content — position it separately
+    SnackbarHost(snackbarHostState)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Header label
+        Text(
+            text = stringResource(R.string.home_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(scaffoldPadding)
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // URL input field
-            OutlinedTextField(
-                value = uiState.urlInput,
-                onValueChange = viewModel::onUrlChanged,
-                label = { Text(stringResource(R.string.paste_url_hint)) },
-                leadingIcon = {
-                    Icon(Icons.Filled.Link, contentDescription = null)
-                },
-                singleLine = false,
-                maxLines = 4,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        viewModel.shortenUrl()
-                    }
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
-            )
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
 
-            Spacer(Modifier.height(16.dp))
-
-            // Shorten button
-            Button(
-                onClick = {
+        // URL input field
+        OutlinedTextField(
+            value = uiState.urlInput,
+            onValueChange = viewModel::onUrlChanged,
+            label = { Text(stringResource(R.string.paste_url_hint)) },
+            leadingIcon = {
+                Icon(Icons.Filled.Link, contentDescription = null)
+            },
+            singleLine = false,
+            maxLines = 4,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
                     focusManager.clearFocus()
                     viewModel.shortenUrl()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                }
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isLoading
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Shorten button
+        Button(
+            onClick = {
+                focusManager.clearFocus()
+                viewModel.shortenUrl()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isLoading
+        ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.size(8.dp))
+                if (uiState.isWakingUp) {
+                    Text("Waking up server…")
                 } else {
-                    Text(stringResource(R.string.shorten_button))
+                    Text("Shortening…")
                 }
+            } else {
+                Text(stringResource(R.string.shorten_button))
             }
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
 
-            // Result card — shown with animation when a short URL is ready
-            AnimatedVisibility(
-                visible = uiState.resultShortUrl != null,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                exit = fadeOut()
-            ) {
-                uiState.resultShortUrl?.let { shortUrl ->
-                    ResultCard(
-                        shortUrl = shortUrl,
-                        onCopy = {
-                            copyToClipboard(context, shortUrl)
-                            Toast.makeText(context, context.getString(R.string.copied_toast), Toast.LENGTH_SHORT).show()
-                        },
-                        onOpen = {
-                            openInCustomTab(context, shortUrl)
-                        }
-                    )
-                }
+        // Result card — shown with animation when a short URL is ready
+        AnimatedVisibility(
+            visible = uiState.resultShortUrl != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut()
+        ) {
+            uiState.resultShortUrl?.let { shortUrl ->
+                ResultCard(
+                    shortUrl = shortUrl,
+                    onCopy = {
+                        copyToClipboard(context, shortUrl)
+                        Toast.makeText(context, context.getString(R.string.copied_toast), Toast.LENGTH_SHORT).show()
+                    },
+                    onOpen = {
+                        openInCustomTab(context, shortUrl)
+                    }
+                )
             }
         }
     }

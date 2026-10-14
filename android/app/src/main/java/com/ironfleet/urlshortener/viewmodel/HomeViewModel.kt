@@ -15,6 +15,7 @@ import javax.inject.Inject
 data class HomeUiState(
     val urlInput: String = "",
     val isLoading: Boolean = false,
+    val isWakingUp: Boolean = false,   // true after 5 s of loading (Render cold-start hint)
     val resultShortUrl: String? = null,
     val resultShortCode: String? = null,
     val errorMessage: String? = null,
@@ -61,6 +62,7 @@ class HomeViewModel @Inject constructor(
 
         _uiState.value = _uiState.value.copy(
             isLoading = true,
+            isWakingUp = false,
             errorMessage = null,
             isRateLimited = false,
             resultShortUrl = null,
@@ -68,19 +70,31 @@ class HomeViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
+            // After 5 s with no response, show a "waking up server" hint
+            // (Render free tier can take up to 30 s on cold-start)
+            val wakingUpJob = launch {
+                kotlinx.coroutines.delay(5_000)
+                _uiState.value = _uiState.value.copy(isWakingUp = true)
+            }
+
             val result = repository.shorten(url)
+            wakingUpJob.cancel()          // response arrived — clear the hint
+
             _uiState.value = when (result) {
                 is ShortenResult.Success -> _uiState.value.copy(
                     isLoading = false,
+                    isWakingUp = false,
                     resultShortUrl = result.shortUrl,
                     resultShortCode = result.shortCode
                 )
                 is ShortenResult.RateLimited -> _uiState.value.copy(
                     isLoading = false,
+                    isWakingUp = false,
                     isRateLimited = true
                 )
                 is ShortenResult.Error -> _uiState.value.copy(
                     isLoading = false,
+                    isWakingUp = false,
                     errorMessage = result.message
                 )
             }

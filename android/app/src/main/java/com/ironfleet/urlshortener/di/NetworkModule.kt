@@ -41,9 +41,10 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
+            // Render free tier cold-starts can take ~30 s — use 45 s to be safe.
+            .connectTimeout(45, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .writeTimeout(45, TimeUnit.SECONDS)
             .build()
     }
 
