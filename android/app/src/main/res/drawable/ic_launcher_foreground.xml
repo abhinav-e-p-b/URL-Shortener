@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chain-link icon — matches the AppLogo composable used in the TopAppBar -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Safe zone is the inner 72dp (18dp inset on each side) -->
+
+    <!-- Left ring -->
+    <path
+        android:pathData="M47,54
+                          A13,13 0 0 1 60,41
+                          L67,41
+                          A13,13 0 0 1 67,67
+                          L60,67"
+        android:strokeColor="#2C2B29"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+
+    <!-- Right ring (slightly muted) -->
+    <path
+        android:pathData="M61,54
+                          A13,13 0 0 1 48,67
+                          L41,67
+                          A13,13 0 0 1 41,41
+                          L48,41"
+        android:strokeColor="#7A7570"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+
+    <!-- Horizontal connector bar -->
+    <path
+        android:pathData="M41,54 L67,54"
+        android:strokeColor="#2C2B29"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent" />
+
+</vector>
