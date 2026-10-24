@@ -3,78 +3,738 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shorten a link</title>
+<title>SnipURL — Shorten a link</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23D7C9BA'/><path d='M10 17.5a4.5 4.5 0 0 1 0-9h3a.5.5 0 0 1 0 1h-3a3.5 3.5 0 1 0 0 7h3a.5.5 0 0 1 0 1h-3zm9-8h3a4.5 4.5 0 0 1 0 9h-3a.5.5 0 0 1 0-1h3a3.5 3.5 0 1 0 0-7h-3a.5.5 0 0 1 0-1zm-6.5 5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z' fill='%232C2B29' transform='scale(1.6) translate(-3.5 -3.5)'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#eef3f6;--ink:#12303f;--muted:#5c7482;--line:#cfdce4;--card:#fff;--accent:#2f5bea;--code:#f2a93b;--bad:#c2372f;--ok:#1f8a5b}
-@media (prefers-color-scheme:dark){:root{--bg:#10222d;--ink:#e6f0f5;--muted:#8fa7b5;--line:#25404f;--card:#16303e;--accent:#7b9bff;--code:#f2b658;--bad:#ff8a80;--ok:#5fd0a0}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.5}
-main{max-width:640px;margin:0 auto;padding:56px 20px 80px}
-h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:0 0 10px}
-.sub{color:var(--muted);margin:0 0 28px}
-form{display:flex;gap:8px;flex-wrap:wrap}
-input{flex:1 1 260px;font:inherit;padding:14px 16px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
-button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:10px}
-.go{padding:14px 22px;background:var(--accent);color:#fff}
-.go:disabled{opacity:.6;cursor:wait}
-:is(input,button,summary,a):focus-visible{outline:3px solid var(--code);outline-offset:2px}
-.msg{min-height:1.5em;margin:12px 0 0;color:var(--bad);font-size:.95rem}
-.result{display:none;margin-top:20px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:20px}
-.result.show{display:block}
-.was{color:var(--muted);font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:line-through;transform-origin:left;animation:squash .6s ease-out}
-@keyframes squash{from{transform:scaleX(1.6);opacity:0}to{transform:none;opacity:1}}
-.short{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
-.short a{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none;word-break:break-all}
-.short a b{background:var(--code);color:#12303f;padding:0 6px;border-radius:6px}
-.copy{padding:8px 14px;background:transparent;border:1.5px solid var(--line);color:var(--ink)}
-.copy.done{border-color:var(--ok);color:var(--ok)}
-h2{font-size:1.1rem;margin:40px 0 10px}
-ul{list-style:none;margin:0;padding:0}
-li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
-li div{min-width:0}
-li a{font-weight:600;color:var(--accent);text-decoration:none}
-li span{display:block;color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-li button{background:none;color:var(--muted);padding:6px 10px;border:1px solid var(--line)}
-.empty{color:var(--muted)}
-details{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted);font-size:.92rem}
-summary{cursor:pointer;color:var(--ink);font-weight:600}
-details label{display:block;margin:12px 0 4px}
-details input{width:100%;font-size:.95rem;padding:10px 12px}
-pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;color:var(--ink);font-size:.82rem}
-@media (prefers-reduced-motion:reduce){.was{animation:none}}
+/* ── Design Tokens (Relevo & Vinco — Raw Material / Kraft Cardboard) ───── */
+/* Zero-ink tactile theme: off-white paper, kraft brown, charcoal stamp ink  */
+:root {
+  --bg:          #F5F2EB;   /* off-white paper — base background              */
+  --surface:     #D7C9BA;   /* kraft brown — raised surfaces, cards            */
+  --surface-hi:  #C4B5A5;   /* kraft dark — debossed wells, insets             */
+  --ink:         #2C2B29;   /* charcoal — primary text, letterpress ink        */
+  --muted:       #A29E99;   /* greyboard — secondary / muted text              */
+  --outline:     #BEB5AA;   /* outline — dividers, borders, crease lines       */
+  --primary:     #3D3A35;   /* dark stamp ink — accent, CTAs                   */
+  --primary-dim: #C4B5A5;   /* primary container — muted kraft for ghost btns  */
+  --on-primary:  #F5F2EB;   /* on primary — text on dark stamp background      */
+  --code:        #6B5C44;   /* warm brown — code accent / highlight            */
+  --bad:         #8B4040;   /* muted warm red — errors                         */
+  --ok:          #4A7C59;   /* muted forest green — success states             */
+
+  /* Multi-layer raised shadow (embossed) — kraft cardboard lighting model:   */
+  /* Light source: top-left. Highlight = bright paper, shadow = charcoal.     */
+  --shadow-raised:
+    -2px -2px 0  rgba(255,248,235,.85),   /* top-left paper highlight         */
+    -1px -1px 0  rgba(237,231,222,.70),   /* softer secondary highlight       */
+     1px  1px 0  rgba(44,43,41,.12),      /* immediate bottom-right shadow    */
+     3px  5px 8px rgba(44,43,41,.18),     /* mid cast shadow                  */
+    10px 14px 22px rgba(44,43,41,.14);    /* deep ambient shadow              */
+
+  /* Inset / deboss shadow — element pressed INTO the cardboard surface       */
+  --shadow-inset:
+    inset  3px  4px  8px rgba(44,43,41,.22),   /* top-left inset shadow       */
+    inset  1px  1px  2px rgba(44,43,41,.18),   /* tight inner edge            */
+    inset -1px -1px  0   rgba(255,248,235,.60); /* bottom-right inner hilight  */
+
+  /* Subtle raised shadow — small interactive elements (list buttons, badges) */
+  --shadow-sm:
+    -1px -1px 0  rgba(255,248,235,.80),
+     1px  1px 0  rgba(44,43,41,.10),
+     2px  3px 5px rgba(44,43,41,.14);
+
+  /* Press / active state — flat deboss when element is clicked               */
+  --shadow-press:
+    inset 1px 2px 5px rgba(44,43,41,.28),
+    inset 0   0   1px rgba(44,43,41,.20);
+}
+
+/* ── SVG noise texture — paper grain / pressed cardboard feel ────────────── */
+/* Warm beige-tinted fractal noise simulates uncoated kraft fibre texture.    */
+/* baseFrequency higher (.75) = finer grain, like 180gsm uncoated cardstock.  */
+:root {
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .47 0 0 0 0 .38 0 0 0 .12 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* ── Reset & Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: var(--noise);
+  color: var(--ink);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Navigation bar ─────────────────────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  height: 64px;
+  padding: 0 clamp(20px, 6vw, 96px);
+  background-color: var(--surface);
+  background-image: var(--noise);
+  box-shadow: var(--shadow-raised);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.nav-icon { width: 36px; height: 36px; flex-shrink: 0; }
+
+.nav-wordmark {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  text-transform: uppercase;
+}
+.nav-wordmark span { color: var(--primary); }
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 72px 20px 96px;
+}
+
+/* ── Hero section ───────────────────────────────────────────────────────── */
+.hero {
+  margin-bottom: 56px;
+}
+
+.hero-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+
+/* Big embossed heading — letterpress stamp raised typography */
+h1 {
+  font-size: clamp(2.4rem, 7vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: .96;
+  text-transform: uppercase;
+  margin: 0 0 20px;
+  color: var(--ink);
+  /* Multi-layer text shadow = embossed / raised letterpress effect */
+  text-shadow:
+    -1px -1px 0 rgba(255,248,235,.90),   /* top-left paper highlight */
+     1px  2px 0 rgba(44,43,41,.35),      /* immediate bottom-right shadow */
+     3px  5px 6px rgba(44,43,41,.25),    /* mid cast shadow */
+    10px 16px 24px rgba(44,43,41,.20);   /* deep ambient shadow */
+}
+
+/* The "accent" word in the heading — slightly darker stamp ink */
+h1 .accent {
+  color: var(--code);
+  text-shadow:
+    -1px -1px 0 rgba(255,248,235,.85),
+     1px  2px 0 rgba(44,43,41,.40),
+     3px  5px 6px rgba(44,43,41,.30),
+    10px 16px 24px rgba(44,43,41,.22);
+}
+
+.sub {
+  font-size: 1.05rem;
+  color: var(--muted);
+  margin: 0 0 0;
+  letter-spacing: -.01em;
+}
+
+/* ── Raised surface (card base) ─────────────────────────────────────────── */
+.surface {
+  background-color: var(--surface);
+  background-image: var(--noise);
+  border-radius: 6px;
+  box-shadow: var(--shadow-raised);
+}
+
+/* ── Form section ───────────────────────────────────────────────────────── */
+.form-section {
+  margin-bottom: 40px;
+}
+
+/* Input well — debossed / inset */
+.field-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+input[type="url"], input[type="text"] {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  padding: 16px 18px;
+  background-color: var(--surface-hi);
+  background-image: var(--noise);
+  color: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  /* Inset / deboss — the "well" effect */
+  box-shadow: var(--shadow-inset);
+  outline: none;
+  transition: box-shadow .2s;
+}
+
+input[type="url"]:focus,
+input[type="text"]:focus {
+  box-shadow:
+    var(--shadow-inset),
+    0 0 0 2px var(--primary);
+}
+
+input::placeholder { color: var(--muted); opacity: .6; }
+
+/* ── Raised button ──────────────────────────────────────────────────────── */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--primary);
+  background-image: var(--noise);
+  color: var(--on-primary);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow .18s cubic-bezier(.3,.7,.2,1), transform .18s cubic-bezier(.3,.7,.2,1);
+}
+
+.btn:active {
+  box-shadow: var(--shadow-press);
+  transform: translate(1px, 2px);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--code);
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+/* Secondary / outline button */
+.btn-ghost {
+  background-color: var(--surface-hi);
+  background-image: var(--noise);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-ghost:active {
+  box-shadow: var(--shadow-press);
+  transform: translate(1px, 2px);
+}
+
+/* ── Error / status message ─────────────────────────────────────────────── */
+.msg {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  font-size: .9rem;
+  color: var(--bad);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+/* ── Result card ────────────────────────────────────────────────────────── */
+.result {
+  display: none;
+  margin-top: 32px;
+}
+.result.show { display: block; }
+
+/* Dashed crease line above result — mimicking Relevo's score/crease marks */
+.crease {
+  height: 3px;
+  margin-bottom: 24px;
+  border-radius: 2px;
+  background: none;
+  border: none;
+  box-shadow: var(--shadow-inset);
+}
+
+.result-inner {
+  padding: 24px;
+}
+
+.result-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.was {
+  font-size: .85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: line-through;
+  margin-bottom: 10px;
+  animation: squash .55s cubic-bezier(.2,.75,.15,1) backwards;
+}
+
+.short-url-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.short-url-row a {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  color: var(--ink);
+  text-decoration: none;
+  word-break: break-all;
+  /* Raised text shadow on the short URL — kraft letterpress */
+  text-shadow:
+    -1px -1px 0 rgba(255,248,235,.85),
+     1px  1px 0 rgba(44,43,41,.22),
+     2px  3px 5px rgba(44,43,41,.16);
+}
+
+.short-url-row a b {
+  color: var(--code);
+  text-shadow:
+    -1px -1px 0 rgba(255,248,235,.80),
+     1px  1px 0 rgba(44,43,41,.25),
+     2px  3px 5px rgba(44,43,41,.18);
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.result-actions .btn,
+.result-actions .btn-ghost {
+  width: auto;
+  flex: 1 1 120px;
+  min-height: 46px;
+  font-size: .9rem;
+}
+
+.copy.done { background-color: var(--ok); }
+
+/* ── Section heading ────────────────────────────────────────────────────── */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin: 52px 0 20px;
+}
+
+.section-head h2 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Crease / dashed line extending to the right */
+.section-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--outline) 0 4px,
+    transparent 4px 9px
+  );
+}
+
+/* ── History list ───────────────────────────────────────────────────────── */
+ul { list-style: none; margin: 0; padding: 0; }
+
+li {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0;
+}
+
+/* Dashed top crease on each list item */
+li::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--outline) 0 4px,
+    transparent 4px 9px
+  );
+}
+
+li div { min-width: 0; }
+
+li a {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--primary);
+  text-decoration: none;
+  letter-spacing: -.01em;
+  display: block;
+  /* Raised text shadow on links — kraft letterpress */
+  text-shadow:
+    -1px -1px 0 rgba(255,248,235,.80),
+     1px  1px 0 rgba(44,43,41,.12),
+     1px  2px 3px rgba(44,43,41,.08);
+  transition: color .2s;
+}
+
+li a:hover { color: var(--ink); }
+
+li span {
+  display: block;
+  font-size: .82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+li button {
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  background-color: var(--surface-hi);
+  color: var(--muted);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  transition: box-shadow .18s, transform .18s;
+}
+
+li button:active {
+  box-shadow: var(--shadow-press);
+  transform: translate(1px, 1px);
+}
+
+.empty {
+  padding: 24px 0;
+  color: var(--muted);
+  font-size: .95rem;
+  text-align: center;
+  letter-spacing: .02em;
+}
+.empty::before { content: ""; display: block; }
+
+/* ── Settings accordion ─────────────────────────────────────────────────── */
+details {
+  margin-top: 48px;
+}
+
+/* Crease line as details border */
+details::before {
+  content: "";
+  display: block;
+  height: 3px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-inset);
+  border-radius: 2px;
+}
+
+summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 0 12px;
+}
+
+summary::-webkit-details-marker { display: none; }
+
+/* Plus / minus mark */
+.summary-mark {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  background-color: var(--surface-hi);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.summary-mark::before,
+.summary-mark::after {
+  content: "";
+  position: absolute;
+  width: 10px; height: 2px;
+  background: var(--muted);
+  transition: transform .25s;
+}
+.summary-mark::after { transform: rotate(90deg); }
+details[open] .summary-mark::after { transform: rotate(0deg); }
+
+details label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+pre {
+  background-color: var(--surface-hi);
+  background-image: var(--noise);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: .8rem;
+  color: var(--ink);
+  box-shadow: var(--shadow-inset);
+  margin: 8px 0 0;
+}
+
+/* ── Focus visible ring ─────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 3px solid var(--code);
+  outline-offset: 3px;
+}
+
+/* ── Utility: Tactile embossed element (raised from surface) ────────────── */
+/* Add class="embossed-element" to any element that should feel physically    */
+/* raised OUT of the kraft cardboard surface (neumorphic raise).              */
+.embossed-element {
+  background-color: var(--surface);
+  background-image: var(--noise);
+  border-radius: 8px;
+  box-shadow: var(--shadow-raised);
+}
+
+/* ── Utility: Tactile debossed element (pressed into surface) ───────────── */
+/* Add class="debossed-element" to any element that should feel pressed INTO  */
+/* the kraft cardboard surface (neumorphic well / inset).                     */
+.debossed-element {
+  background-color: var(--surface-hi);
+  background-image: var(--noise);
+  border-radius: 6px;
+  box-shadow: var(--shadow-inset);
+}
+
+/* ── Scroll & Fold UX — Cardboard Crease / Fold Transitions ────────────── */
+/* Result card: slides in from below as if a cardboard flap unfolds.         */
+/* Uses scaleY from a transform-origin at top = unfolding hinge effect.      */
+.result {
+  transform-origin: top center;
+}
+.result.show {
+  animation: unfold-panel .45s cubic-bezier(.2,.8,.3,1) forwards;
+}
+
+@keyframes unfold-panel {
+  0%   {
+    opacity: 0;
+    transform: perspective(600px) rotateX(-18deg) translateY(-12px);
+  }
+  60%  {
+    opacity: 1;
+    transform: perspective(600px) rotateX(3deg)  translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg)  translateY(0);
+  }
+}
+
+/* Details accordion: cardboard fold open/close                              */
+/* The content slides down with a subtle squash that mimics a hinge crease.  */
+details > *:not(summary) {
+  animation: crease-open .35s cubic-bezier(.25,.8,.25,1) both;
+  transform-origin: top;
+}
+
+@keyframes crease-open {
+  from {
+    opacity: 0;
+    transform: scaleY(0.88) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+/* History list item entrance — paper sheet sliding onto a stacked pile      */
+li {
+  animation: sheet-slide .28s cubic-bezier(.25,.8,.25,1) both;
+}
+li:nth-child(1) { animation-delay: .02s; }
+li:nth-child(2) { animation-delay: .05s; }
+li:nth-child(3) { animation-delay: .08s; }
+li:nth-child(4) { animation-delay: .11s; }
+li:nth-child(5) { animation-delay: .14s; }
+
+@keyframes sheet-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleX(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+/* The "squash" animation on .was (original URL) keeps its horizontal press  */
+/* feel — updated timing curve for tactile snap                               */
+@keyframes squash {
+  from { transform: scaleX(1.08); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .was { animation: none; }
+  .btn, li button { transition: none; }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  h1 { letter-spacing: -.03em; }
+  .result-actions { flex-direction: column; }
+  .result-actions .btn,
+  .result-actions .btn-ghost { flex: none; width: 100%; }
+}
 </style>
 </head>
 <body>
+
+<!-- Navigation bar -->
+<nav class="nav">
+  <a class="nav-brand" href="/">
+    <svg class="nav-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="48" height="48" rx="10" fill="#D7C9BA"/>
+      <path d="M20 24a6 6 0 0 1 6-6h4a6 6 0 0 1 0 12h-4" stroke="#2C2B29" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M28 24a6 6 0 0 1-6 6h-4a6 6 0 0 1 0-12h4" stroke="#2C2B29" stroke-width="3.2" stroke-linecap="round" opacity=".40"/>
+      <line x1="18" y1="24" x2="30" y2="24" stroke="#2C2B29" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M32 18l4 4-4 4" stroke="#6B5C44" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="nav-wordmark">Snip<span>URL</span></span>
+  </a>
+</nav>
+
 <main>
-  <h1>Paste a long link.<br>Get a short one.</h1>
-  <p class="sub">No terminal needed. Your links are saved on this device.</p>
 
-  <form id="f">
-    <input id="url" type="url" required placeholder="https://example.com/a/very/long/page" aria-label="Long URL" autofocus>
-    <button class="go" id="go">Shorten link</button>
-  </form>
-  <p class="msg" id="msg" role="alert"></p>
+  <!-- Hero -->
+  <div class="hero">
+    <p class="hero-eyebrow">URL Shortener</p>
+    <h1>Paste a long<br>link. Get a <span class="accent">short</span> one.</h1>
+    <p class="sub">No account needed. Links saved on this device.</p>
+  </div>
 
+  <!-- Shorten form -->
+  <div class="form-section">
+    <form id="f">
+      <div class="field-wrap">
+        <label class="field-label" for="url">Long URL</label>
+        <input id="url" type="url" required placeholder="https://example.com/a/very/long/page" aria-label="Long URL" autofocus>
+      </div>
+      <button class="btn" id="go" type="submit">Shorten link</button>
+    </form>
+    <p class="msg" id="msg" role="alert"></p>
+  </div>
+
+  <!-- Result -->
   <section class="result" id="res" aria-live="polite">
-    <div class="was" id="was"></div>
-    <div class="short">
-      <a id="out" href="#" target="_blank" rel="noopener"></a>
-      <button class="copy" id="copy" type="button">Copy link</button>
+    <div class="crease" aria-hidden="true"></div>
+    <div class="surface result-inner">
+      <p class="result-label">Your short URL</p>
+      <div class="was" id="was"></div>
+      <div class="short-url-row">
+        <a id="out" href="#" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="result-actions">
+        <button class="btn-ghost btn copy" id="copy" type="button">Copy link</button>
+        <a id="open-link" class="btn" href="#" target="_blank" rel="noopener">Open ↗</a>
+      </div>
     </div>
   </section>
 
-  <h2>Your links</h2>
+  <!-- History -->
+  <div class="section-head">
+    <h2>Your links</h2>
+  </div>
   <ul id="list"></ul>
 
+  <!-- Settings -->
   <details>
-    <summary>Connection settings</summary>
+    <summary>
+      <span class="summary-mark" aria-hidden="true"></span>
+      Connection settings
+    </summary>
     <label for="base">Server address (leave blank to use same origin)</label>
-    <input id="base" value="" placeholder="https://yourdomain.com">
+    <input id="base" type="text" value="" placeholder="https://yourdomain.com">
     <label>Same request from the terminal</label>
     <pre id="curl"></pre>
   </details>
+
 </main>
 
 <script>
@@ -96,7 +756,7 @@ const setCurl = () => $("curl").textContent =
 
 function render() {
   const ul = $("list"); ul.innerHTML = "";
-  if (!links.length) { ul.innerHTML = '<li class="empty">Links you shorten will show up here.</li>'; return; }
+  if (!links.length) { ul.innerHTML = '<li class="empty"><div>No links shortened yet.</div></li>'; return; }
   links.forEach((l, i) => {
     const li = document.createElement("li");
     const d = document.createElement("div");
@@ -121,8 +781,11 @@ $("f").addEventListener("submit", async e => {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `The server returned an error (${r.status}).`);
     const short = data.short_url || `${base()}/${data.short_code}`;
-    $("was").textContent = long; $("out").href = short;
-    $("out").innerHTML = ""; const code = short.split("/").pop();
+    $("was").textContent = long;
+    $("out").href = short;
+    $("open-link").href = short;
+    $("out").innerHTML = "";
+    const code = short.split("/").pop();
     $("out").append(short.slice(0, short.length - code.length));
     const b = document.createElement("b"); b.textContent = code; $("out").append(b);
     const res = $("res"); res.classList.remove("show"); void res.offsetWidth; res.classList.add("show");
@@ -136,7 +799,7 @@ $("f").addEventListener("submit", async e => {
 });
 
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText($("out").href); $("copy").textContent = "Copied"; $("copy").classList.add("done"); }
+  try { await navigator.clipboard.writeText($("out").href); $("copy").textContent = "Copied ✓"; $("copy").classList.add("done"); }
   catch { $("copy").textContent = "Press Ctrl+C on the link"; }
 };
 $("url").addEventListener("input", setCurl); $("base").addEventListener("input", setCurl);

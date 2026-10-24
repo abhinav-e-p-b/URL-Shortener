@@ -11,7 +11,7 @@ import retrofit2.http.POST
  * Retrofit service interface for the URL Shortener Flask API.
  *
  * Base URL is injected at runtime from DataStore (Settings screen),
- * defaulting to https://url-shortener-1-m70j.onrender.com/
+ * defaulting to https://url-shortener-0eol.onrender.com/
  *
  * We use ResponseBody (raw) instead of a typed response so that:
  *  - Gson never auto-parses the body and throws MalformedJsonException

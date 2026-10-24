@@ -1,75 +1,62 @@
 package com.ironfleet.urlshortener.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Brand colors — a professional blue/teal palette
-private val brandPrimary = Color(0xFF1565C0)      // Deep Blue
-private val brandOnPrimary = Color(0xFFFFFFFF)
-private val brandPrimaryContainer = Color(0xFFD6E4FF)
-private val brandOnPrimaryContainer = Color(0xFF001A43)
-private val brandSecondary = Color(0xFF00838F)    // Teal
-private val brandSurface = Color(0xFFF8F9FF)
-private val brandOnSurface = Color(0xFF1A1C23)
-private val brandError = Color(0xFFBA1A1A)
+// ─── Relevo & Vinco — Raw Material / Kraft Cardboard Palette ─────────────────
+// The "zero-ink" tactile theme: off-white paper, kraft brown, charcoal stamp.
 
-private val LightColorScheme = lightColorScheme(
-    primary = brandPrimary,
-    onPrimary = brandOnPrimary,
-    primaryContainer = brandPrimaryContainer,
-    onPrimaryContainer = brandOnPrimaryContainer,
-    secondary = brandSecondary,
-    surface = brandSurface,
-    onSurface = brandOnSurface,
-    error = brandError
-)
+private val paperWhite  = Color(0xFFF5F2EB)   // base background — off-white paper
+private val kraftBrown  = Color(0xFFD7C9BA)   // raised surface — kraft cardboard
+private val kraftDark   = Color(0xFFC4B5A5)   // inset surface — debossed well
+private val charcoal    = Color(0xFF2C2B29)   // primary text — letterpress ink
+private val greyboard   = Color(0xFFA29E99)   // muted text — neutral greyboard
+private val inkStamp    = Color(0xFF3D3A35)   // primary accent — dark stamp ink
+private val outlineColor = Color(0xFFBEB5AA)  // dividers / borders
+private val errorRed    = Color(0xFF8B4040)   // warm muted error red
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF9BBEFF),
-    onPrimary = Color(0xFF002E6C),
-    primaryContainer = Color(0xFF00429A),
-    onPrimaryContainer = Color(0xFFD6E4FF),
-    secondary = Color(0xFF4FD8EB),
-    surface = Color(0xFF12131A),
-    onSurface = Color(0xFFE3E2EC),
-    error = Color(0xFFFFB4AB)
+// ─── Single light colour scheme — always light, mimics physical paper ────────
+private val KraftLightColorScheme = lightColorScheme(
+    primary              = inkStamp,
+    onPrimary            = paperWhite,
+    primaryContainer     = kraftBrown,
+    onPrimaryContainer   = charcoal,
+    secondary            = greyboard,
+    onSecondary          = paperWhite,
+    secondaryContainer   = kraftDark,
+    onSecondaryContainer = charcoal,
+    background           = paperWhite,
+    onBackground         = charcoal,
+    surface              = kraftBrown,
+    onSurface            = charcoal,
+    surfaceVariant       = kraftDark,
+    onSurfaceVariant     = greyboard,
+    outline              = outlineColor,
+    error                = errorRed,
+    onError              = paperWhite
 )
 
 @Composable
 fun URLShortenerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = KraftLightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // Status bar matches the paper background — light icons mode
+            window.statusBarColor = paperWhite.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

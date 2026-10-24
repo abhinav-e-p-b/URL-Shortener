@@ -25,7 +25,7 @@ class PreferencesRepository @Inject constructor(
 ) {
     companion object {
         /** Default API base URL — points to the Render-deployed Flask backend */
-        const val DEFAULT_BASE_URL = "https://url-shortener-1-m70j.onrender.com/"
+        const val DEFAULT_BASE_URL = "https://url-shortener-0eol.onrender.com/"
 
         private val KEY_BASE_URL = stringPreferencesKey("api_base_url")
     }
