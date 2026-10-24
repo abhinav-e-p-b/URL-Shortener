@@ -2,6 +2,11 @@
 
 A production-ready URL shortener built with **Flask, PostgreSQL, Redis, Nginx and Docker**. Paste a long link, get a short one. Redirects are served from a Redis cache with PostgreSQL as the source of truth. Also ships a native **Android app** (Kotlin + Jetpack Compose) that connects to the same API.
 
+🌐 **Live Web App:** [url-shortener-0eol.onrender.com](https://url-shortener-0eol.onrender.com)
+📱 **Android APK:** [Latest Release](https://github.com/abhinav-e-p-b/URL-Shortener/releases)
+
+---
+
 ## Features
 
 - Base62 short codes derived from the database ID (collision-free, no retries)
@@ -12,6 +17,9 @@ A production-ready URL shortener built with **Flask, PostgreSQL, Redis, Nginx an
 - Responsive web UI with dark mode, copy buttons and a saved-links list (stored in the browser)
 - Native Android app (Kotlin + Jetpack Compose) with local history via Room and Chrome Custom Tabs
 - Hardened containers: non-root app user, Gunicorn, Nginx security headers, Redis memory cap
+- Signed release APK with R8 minification and resource shrinking
+
+---
 
 ## Architecture
 
@@ -27,7 +35,9 @@ flowchart LR
 
 Only Nginx is exposed publicly; Flask, PostgreSQL and Redis stay on the internal Docker network. The Android app connects directly to the deployed API over HTTPS.
 
-## Quick start
+---
+
+## Quick Start (Self-hosted)
 
 ```bash
 git clone https://github.com/abhinav-e-p-b/URL-Shortener.git
@@ -38,6 +48,8 @@ docker compose up --build
 
 Open **http://localhost**.
 
+---
+
 ## API
 
 | Method | Path | Description |
@@ -47,26 +59,33 @@ Open **http://localhost**.
 | `GET` | `/health` | `200` when Redis and PostgreSQL are reachable, else `503` |
 
 ```bash
-curl -X POST http://localhost/shorten -H "Content-Type: application/json" \
+curl -X POST https://url-shortener-0eol.onrender.com/shorten \
+  -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/a/very/long/page"}'
 ```
+
+---
 
 ## Configuration
 
 | Variable | Default | Purpose |
-|----------|---------|---------||
+|----------|---------|---------|
 | `POSTGRES_PASSWORD` | required | Database password (set in `.env`) |
 | `POSTGRES_USER` / `POSTGRES_DB` | `postgres` / `urlshortener` | Database credentials |
 | `DATABASE_URL`, `REDIS_URL` | – | Override individual host settings (Render, Railway) |
 | `RATE_LIMIT` | `10` | Max `/shorten` requests per minute per IP |
 | `CACHE_TTL` | `86400` | Seconds a short code stays cached |
-| `CORS_ORIGIN` | `*` | Comma-separated allowed origins (set this when the UI is hosted separately) |
+| `CORS_ORIGIN` | `*` | Comma-separated allowed origins |
+
+---
 
 ## Deployment
 
 See [DEPLOYMENT.md](resources/DEPLOYMENT.md) for Oracle Cloud, Render and Railway guides, HTTPS setup and a pre-launch checklist.
 
-## Project structure
+---
+
+## Project Structure
 
 ```
 app/                          Flask API, Dockerfile, schema
@@ -75,15 +94,15 @@ nginx/                        Reverse proxy config + image
 android/                      Native Android app (Kotlin + Jetpack Compose)
 resources/                    Deployment guides and documentation
 android_tech_stack.md         Android tech stack overview
-ANDROID_BUILD_CHANGELOG.md   Android environment setup & build log
+ANDROID_BUILD_CHANGELOG.md    Android environment setup & build log
 docker-compose.yml, render.yaml, .env.example
 ```
+
+---
 
 ## Android App
 
 A native Android client built with **Kotlin + Jetpack Compose** that connects to the same Flask API over HTTPS — no backend changes required. The API is already CORS-enabled, JSON in/out, rate-limited, and served over HTTPS on Render.
-
-See [`android_tech_stack.md`](android_tech_stack.md) for the full tech-stack breakdown and [`ANDROID_BUILD_CHANGELOG.md`](ANDROID_BUILD_CHANGELOG.md) for the environment setup and build log.
 
 ### Android App Architecture
 
@@ -102,6 +121,7 @@ flowchart TD
 |-------|--------|
 | Language | **Kotlin** |
 | UI | **Jetpack Compose + Material 3** |
+| Architecture | **MVVM + Clean Architecture** |
 | Networking | **Retrofit 2 + OkHttp 4** |
 | Local DB | **Room** (link history) |
 | Preferences | **DataStore** (API base URL setting) |
@@ -111,54 +131,67 @@ flowchart TD
 
 ### Building the APK
 
+**Debug build:**
 ```powershell
 cd android
 .\gradlew.bat assembleDebug
 # Output: android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-> **Note:** The Gradle build uses regional mirrors (Tencent / Huawei) for dependency resolution. See `ANDROID_BUILD_CHANGELOG.md` for details on the environment setup.
+**Release build (signed):**
+```powershell
+cd android
+.\gradlew.bat assembleRelease
+# Output: android\app\build\outputs\apk\release\app-release.apk
+```
+
+> **Note:** Release builds require a keystore. See the signing config in `android/app/build.gradle.kts` — credentials are loaded from `local.properties` (not committed to VCS).
+
+---
 
 ## Releases & Packages
 
-### Web App (Docker)
+### Web App
 
-The web stack (Flask + Nginx + PostgreSQL + Redis) is distributed as a **Docker Compose** project. Images are built from source — no pre-built images are published to a registry.
-
-To run the latest version:
-
-```bash
-git clone https://github.com/abhinav-e-p-b/URL-Shortener.git
-cd URL-Shortener
-docker compose up --build
-```
+The web stack is live at [url-shortener-0eol.onrender.com](https://url-shortener-0eol.onrender.com) and deployed via **Render** using the `render.yaml` configuration. It can also be self-hosted with Docker Compose.
 
 ### Android App (APK)
 
-Pre-built debug APKs are **not yet published** to the GitHub Releases page. Build from source:
+A signed release APK is available on the [GitHub Releases](https://github.com/abhinav-e-p-b/URL-Shortener/releases) page.
 
-```powershell
-cd android
-.\gradlew.bat assembleDebug
-```
-
-Once ready for distribution, a signed release APK will be published on the [GitHub Releases](https://github.com/abhinav-e-p-b/URL-Shortener/releases) page. A Play Store listing is planned as a future milestone.
+- **Signed** with a 2048-bit RSA keystore
+- **Minified** with R8 + resource shrinking enabled
+- **Min SDK:** Android 8.0 (API 26) — covers ~95%+ of active devices
+- **Default API URL:** `https://url-shortener-0eol.onrender.com/` (configurable in-app via Settings)
 
 ### Version History
 
-| Tag | Description |
-|-----|-------------|
+| Version | Description |
+|---------|-------------|
 | `v1.0` | Initial web release — Flask + PostgreSQL + Redis + Nginx, deployed on Render |
-| `v1.1` *(planned)* | Android app — Kotlin + Jetpack Compose native client |
+| `v1.1` | Android app — Kotlin + Jetpack Compose native client, signed release APK |
+| `v1.1.1` | Updated Android default API URL to `url-shortener-0eol.onrender.com`; added release signing config and lint fix |
 | `v1.2` *(planned)* | Custom aliases, link expiry, click analytics |
+
+---
 
 ## Roadmap
 
-Custom aliases, link expiry, click analytics, non-sequential codes (current codes are sequential and therefore guessable), and Play Store release of the Android app.
+- [ ] Custom short code aliases
+- [ ] Link expiry / TTL per link
+- [ ] Click analytics dashboard
+- [ ] Non-sequential codes (current codes are sequential and therefore guessable)
+- [ ] Play Store listing for the Android app
+- [ ] GitHub Actions CI — automate build + lint on every push
+- [ ] JWT authentication / API key support for user accounts
+
+---
 
 ## Background
 
 Started as a [NextWork](https://nextwork.ai) learning project (see `resources/`) and extended with Nginx, rate limiting, validation, cloud deployment, and a native Android client.
+
+See [`android_tech_stack.md`](android_tech_stack.md) for the full Android tech-stack breakdown and [`ANDROID_BUILD_CHANGELOG.md`](ANDROID_BUILD_CHANGELOG.md) for the environment setup and build log.
 
 ---
 
