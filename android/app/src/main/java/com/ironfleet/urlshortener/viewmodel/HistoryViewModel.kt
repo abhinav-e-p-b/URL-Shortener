@@ -2,6 +2,7 @@ package com.ironfleet.urlshortener.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ironfleet.urlshortener.data.local.UrlHistoryEntity
 import com.ironfleet.urlshortener.repository.UrlShortenerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

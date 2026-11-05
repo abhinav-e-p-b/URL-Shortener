@@ -75,6 +75,11 @@ android {
         buildConfig = true
     }
 
+    // Export Room schema files so migrations can be validated in tests
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = false
