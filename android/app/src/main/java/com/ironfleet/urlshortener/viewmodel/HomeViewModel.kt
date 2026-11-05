@@ -34,6 +34,21 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    /**
+     * Pre-fill the URL input from an incoming share intent and immediately
+     * trigger shortening. Called once by HomeScreen when [sharedUrl] is non-null.
+     *
+     * Guards against re-triggering on recomposition via [_sharedUrlConsumed].
+     */
+    private var _sharedUrlConsumed = false
+
+    fun handleSharedUrl(url: String) {
+        if (_sharedUrlConsumed) return
+        _sharedUrlConsumed = true
+        _uiState.value = _uiState.value.copy(urlInput = url)
+        shortenUrl()
+    }
+
     /** Called on every keystroke in the URL input field */
     fun onUrlChanged(newUrl: String) {
         _uiState.value = _uiState.value.copy(

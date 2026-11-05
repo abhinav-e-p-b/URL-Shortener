@@ -3,8 +3,6 @@ package com.ironfleet.urlshortener.ui.theme
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -126,22 +123,9 @@ fun Modifier.debossedContainer(
     .clip(RoundedCornerShape(cornerRadius))
     .background(backgroundColor, RoundedCornerShape(cornerRadius))
     .drawBehind {
-        // Inset shadow — top-left deep shadow (light source blocked)
         drawIntoCanvas {
-            val shadowPaint = Paint().apply {
-                asFrameworkPaint().apply {
-                    isAntiAlias = true
-                    color = android.graphics.Color.TRANSPARENT
-                    setShadowLayer(
-                        8.dp.toPx(),
-                        3.dp.toPx(),
-                        4.dp.toPx(),
-                        KraftShadowDeep.copy(alpha = 0.45f).toArgb()
-                    )
-                }
-            }
-            // We can't do true CSS inset shadows in Compose drawBehind easily,
-            // so we draw a subtle top-left inner border stripe for the deboss feel
+            // Inset shadow lines — debossed "pressed into surface" feel.
+            // Top-left dark stripes (light source blocked), bottom-right highlights.
             drawLine(
                 color       = KraftShadowMid.copy(alpha = 0.5f),
                 start       = Offset(cornerRadius.toPx(), 0f),

@@ -34,8 +34,15 @@ interface UrlHistoryDao {
     suspend fun deleteById(id: Long)
 
     /**
-     * Clear all history (used by a future "Clear All" button).
+     * Clear all history (used by the "Clear All" button).
      */
     @Query("DELETE FROM url_history")
     suspend fun clearAll()
+
+    /**
+     * Update the cached click count for a given short code.
+     * Called after a successful GET /stats/<short_code> response.
+     */
+    @Query("UPDATE url_history SET clickCount = :count WHERE shortCode = :shortCode")
+    suspend fun updateClickCount(shortCode: String, count: Int)
 }

@@ -9,6 +9,7 @@ import com.ironfleet.urlshortener.data.remote.UrlShortenerApi
 import com.ironfleet.urlshortener.data.remote.dto.ApiErrorResponse
 import com.ironfleet.urlshortener.data.remote.dto.ShortenRequest
 import com.ironfleet.urlshortener.data.remote.dto.ShortenResponse
+import com.ironfleet.urlshortener.data.remote.dto.StatsResponse
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -173,7 +174,7 @@ class UrlShortenerRepository @Inject constructor(
         val deadline = System.currentTimeMillis() + maxWaitMs
         while (System.currentTimeMillis() < deadline) {
             try {
-                val r = healthApi!!.health()
+                val r = healthApi?.health() ?: break  // guard: null-safe instead of !!
                 val body = r.body()?.string()?.trim()
                 if (r.isSuccessful && !body.isNullOrEmpty()) return true
             } catch (_: Exception) {
@@ -200,6 +201,27 @@ class UrlShortenerRepository @Inject constructor(
 
     /** Clear the entire history */
     suspend fun clearAllHistory() = dao.clearAll()
+
+    /**
+     * Fetch the latest click count for every history entry from the server
+     * and update the local Room cache. Errors on individual entries are
+     * swallowed so a single bad short code never blocks the whole refresh.
+     */
+    suspend fun refreshClickCounts(shortCodes: List<String>) {
+        val currentApi = try { getApi() } catch (_: Exception) { return }
+        shortCodes.forEach { code ->
+            try {
+                val response = currentApi.getStats(code)
+                val rawBody = response.body()?.string()?.trim()
+                if (response.isSuccessful && !rawBody.isNullOrEmpty()) {
+                    val stats = gson.fromJson(rawBody, StatsResponse::class.java)
+                    dao.updateClickCount(stats.shortCode, stats.clickCount)
+                }
+            } catch (_: Exception) {
+                // Network unavailable or bad code — leave existing cached count intact
+            }
+        }
+    }
 
     /** Expose the current API base URL for the Settings screen pre-fill */
     val baseUrlFlow: Flow<String> = preferencesRepository.baseUrlFlow

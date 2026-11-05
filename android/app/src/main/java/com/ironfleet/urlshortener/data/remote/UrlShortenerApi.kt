@@ -6,12 +6,13 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 /**
  * Retrofit service interface for the URL Shortener Flask API.
  *
  * Base URL is injected at runtime from DataStore (Settings screen),
- * defaulting to https://url-shortener-0eol.onrender.com/
+ * defaulting to https://url-shortener-0eol.onrender.com
  *
  * We use ResponseBody (raw) instead of a typed response so that:
  *  - Gson never auto-parses the body and throws MalformedJsonException
@@ -37,4 +38,12 @@ interface UrlShortenerApi {
      */
     @GET("health")
     suspend fun health(): Response<ResponseBody>
+
+    /**
+     * Fetch the redirect click count for a given short code.
+     * GET /stats/{short_code}
+     * Returns 200 {"short_code": "abc", "click_count": 42}
+     */
+    @GET("stats/{short_code}")
+    suspend fun getStats(@Path("short_code") shortCode: String): Response<ResponseBody>
 }

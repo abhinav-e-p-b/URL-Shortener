@@ -45,7 +45,8 @@ def get_db():
     )
 
 def init_db():
-    """Create the urls table if it doesn't exist yet.
+    """Create the urls table if it doesn't exist yet, and add click_count
+    if the table was created by an older version of the schema.
     Needed on Render because managed PostgreSQL won't auto-run init.sql."""
     conn = get_db()
     cur = conn.cursor()
@@ -53,8 +54,13 @@ def init_db():
         CREATE TABLE IF NOT EXISTS urls (
             id SERIAL PRIMARY KEY,
             long_url TEXT NOT NULL,
+            click_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+    """)
+    # Idempotent migration: add click_count to tables created before this column existed
+    cur.execute("""
+        ALTER TABLE urls ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0;
     """)
     conn.commit()
     cur.close()
@@ -140,19 +146,39 @@ def redirect_url(short_code):
     if not all(c in ALPHABET for c in short_code):
         return jsonify({"error": "Short URL not found"}), 404
 
+    url_id = base62_decode(short_code)
+
     # Check the fast cache first
     long_url = cache.get(short_code)
 
     if long_url:
         print("CACHE HIT", flush=True)
+        # Increment click count in Postgres even on cache hits so the counter
+        # reflects every real redirect — not just cold-path DB lookups.
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE urls SET click_count = click_count + 1 WHERE id = %s",
+                (url_id,)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"click_count update failed (cache hit): {e}", flush=True)
         return redirect(long_url, code=302)
 
-    # Cache miss - fall back to the database
+    # Cache miss - fall back to the database, incrementing the counter at the same time
     print("CACHE MISS - querying database", flush=True)
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT long_url FROM urls WHERE id = %s", (base62_decode(short_code),))
+    cur.execute(
+        "UPDATE urls SET click_count = click_count + 1 WHERE id = %s RETURNING long_url",
+        (url_id,)
+    )
     result = cur.fetchone()
+    conn.commit()
     cur.close()
     conn.close()
 
@@ -164,6 +190,29 @@ def redirect_url(short_code):
     cache.set(short_code, long_url)
 
     return redirect(long_url, code=302)
+
+@app.route("/stats/<short_code>")
+@rate_limit(max_requests=60, window=60)
+def get_stats(short_code):
+    """Return the click count for a given short code.
+    GET /stats/<short_code>
+    Returns: {"short_code": "abc", "click_count": 42}
+    """
+    if not all(c in ALPHABET for c in short_code):
+        return jsonify({"error": "Invalid short code"}), 400
+
+    url_id = base62_decode(short_code)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT click_count FROM urls WHERE id = %s", (url_id,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not result:
+        return jsonify({"error": "Short URL not found"}), 404
+
+    return jsonify({"short_code": short_code, "click_count": result[0]}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

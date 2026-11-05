@@ -26,7 +26,9 @@ object DatabaseModule {
             context,
             UrlShortenerDatabase::class.java,
             "url_shortener.db"
-        ).build()
+        )
+            .addMigrations(UrlShortenerDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides

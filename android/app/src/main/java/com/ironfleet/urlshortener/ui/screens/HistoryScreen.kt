@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +67,8 @@ import java.util.Locale
 
 /**
  * History screen — displays all locally saved shortened URLs from Room.
- * Each item can be copied, opened in a Custom Tab, or deleted.
+ * Each item shows the short URL, original URL, timestamp, live click count,
+ * and action buttons (copy / open / delete).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +77,7 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val history by viewModel.history.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val context = LocalContext.current
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -127,8 +132,31 @@ fun HistoryScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 actions = {
-                    // "Clear all" action — only shown when there is history
+                    // Refresh click counts — spinning indicator while in progress
                     if (history.isNotEmpty()) {
+                        if (isRefreshing) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = { viewModel.refreshClickCounts() }) {
+                                Icon(
+                                    Icons.Filled.Refresh,
+                                    contentDescription = "Refresh click counts",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        // "Clear all" action
                         IconButton(onClick = { showClearDialog = true }) {
                             Icon(
                                 Icons.Filled.DeleteSweep,
@@ -147,8 +175,7 @@ fun HistoryScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(scaffoldPadding)
-                    .padding(innerPadding),
+                    .padding(scaffoldPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -170,8 +197,7 @@ fun HistoryScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(scaffoldPadding)
-                    .padding(innerPadding),
+                    .padding(scaffoldPadding),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
@@ -190,6 +216,7 @@ fun HistoryScreen(
                             CustomTabsIntent.Builder().setShowTitle(true).build()
                                 .launchUrl(context, entry.shortUrl.toUri())
                         },
+                        onShare = { shareUrl(context, entry.shortUrl) },
                         onDelete = { viewModel.deleteEntry(entry.id) }
                     )
                 }
@@ -224,6 +251,7 @@ private fun HistoryItem(
     entry: UrlHistoryEntity,
     onCopy: () -> Unit,
     onOpen: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault()) }
@@ -259,13 +287,32 @@ private fun HistoryItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.size(4.dp))
-            // Timestamp — very muted, wide tracking (stamp label feel)
-            Text(
-                text = dateFormat.format(Date(entry.createdAt)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-            )
+            Spacer(Modifier.size(6.dp))
+            // Timestamp and click count on the same row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Timestamp — very muted, wide tracking (stamp label feel)
+                Text(
+                    text = dateFormat.format(Date(entry.createdAt)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                )
+                // Click count badge — "↗ 42 clicks" or "↗ 1 click"
+                val clickLabel = if (entry.clickCount == 1) "click" else "clicks"
+                Text(
+                    text = "↗ ${entry.clickCount} $clickLabel",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (entry.clickCount > 0) 0.75f else 0.3f
+                    )
+                )
+            }
             // Action icons aligned to end
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -283,6 +330,14 @@ private fun HistoryItem(
                     Icon(
                         Icons.Filled.OpenInBrowser,
                         contentDescription = stringResource(R.string.open_button),
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onShare) {
+                    Icon(
+                        Icons.Filled.Share,
+                        contentDescription = stringResource(R.string.share_button),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

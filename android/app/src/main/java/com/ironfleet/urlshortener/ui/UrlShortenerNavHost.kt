@@ -65,10 +65,13 @@ private val bottomNavItems = listOf(
  * The global Scaffold owns:
  *  - a [TopAppBar] showing the [AppLogo] composable (surface colour, no elevation)
  *  - a [NavigationBar] at the bottom (surface colour, with a top divider)
+ *
+ * @param sharedUrl URL pre-populated from an incoming ACTION_SEND share intent.
+ *   Forwarded to [HomeScreen] so it can pre-fill the input and auto-shorten.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UrlShortenerNavHost() {
+fun UrlShortenerNavHost(sharedUrl: String? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -143,7 +146,10 @@ fun UrlShortenerNavHost() {
             // Pass scaffold padding so content isn't hidden behind nav bar
         ) {
             composable(Routes.HOME) {
-                HomeScreen(innerPadding = innerPadding)
+                HomeScreen(
+                    innerPadding = innerPadding,
+                    sharedUrl = sharedUrl
+                )
             }
             composable(Routes.HISTORY) {
                 HistoryScreen(innerPadding = innerPadding)

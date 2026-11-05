@@ -7,6 +7,7 @@
     <string name="shorten_button">Shorten</string>
     <string name="copy_button">Copy</string>
     <string name="open_button">Open</string>
+    <string name="share_button">Share</string>
     <string name="delete_button">Delete</string>
     <string name="copied_toast">Short URL copied to clipboard</string>
     <string name="empty_history">No links shortened yet</string>

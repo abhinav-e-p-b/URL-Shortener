@@ -45,7 +45,6 @@ private val KraftLightColorScheme = lightColorScheme(
 
 @Composable
 fun URLShortenerTheme(
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = KraftLightColorScheme

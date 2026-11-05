@@ -3,6 +3,7 @@ package com.ironfleet.urlshortener.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,16 +83,28 @@ import com.ironfleet.urlshortener.viewmodel.HomeViewModel
  * The outer Scaffold in UrlShortenerNavHost owns the app chrome.
  * We only consume innerPadding to avoid the content being hidden
  * behind the bottom navigation bar.
+ *
+ * @param sharedUrl URL forwarded from an ACTION_SEND share intent. When
+ *   non-null, the ViewModel pre-fills the input and auto-triggers shortening.
  */
 @Composable
 fun HomeScreen(
     innerPadding: PaddingValues,
+    sharedUrl: String? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // When the activity was launched via a share intent, pre-fill + auto-shorten once
+    LaunchedEffect(sharedUrl) {
+        if (sharedUrl != null) {
+            focusManager.clearFocus()
+            viewModel.handleSharedUrl(sharedUrl)
+        }
+    }
 
     // Map error codes to user-friendly strings
     val errorMessage = when (uiState.errorMessage) {
@@ -283,6 +297,9 @@ fun HomeScreen(
                         },
                         onOpen = {
                             openInCustomTab(context, shortUrl)
+                        },
+                        onShare = {
+                            shareUrl(context, shortUrl)
                         }
                     )
                 }
@@ -325,7 +342,8 @@ private fun DashedHorizontalDivider(
 private fun ResultCard(
     shortUrl: String,
     onCopy: () -> Unit,
-    onOpen: () -> Unit
+    onOpen: () -> Unit,
+    onShare: () -> Unit
 ) {
     val cardShape = RoundedCornerShape(8.dp)
 
@@ -359,8 +377,9 @@ private fun ResultCard(
         DashedHorizontalDivider(color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(14.dp))
 
+        // ── Three action buttons: Copy · Open · Share ─────────────────────────
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             // Copy — secondary ghost button (debossed feel, lighter background)
@@ -393,6 +412,7 @@ private fun ResultCard(
                     style = MaterialTheme.typography.labelMedium
                 )
             }
+
             // Open — primary embossed button
             val openInteraction = remember { MutableInteractionSource() }
             Button(
@@ -422,6 +442,37 @@ private fun ResultCard(
                     style = MaterialTheme.typography.labelMedium
                 )
             }
+
+            // Share — secondary ghost button matching Copy style
+            val shareInteraction = remember { MutableInteractionSource() }
+            OutlinedButton(
+                onClick = onShare,
+                shape = cardShape,
+                interactionSource = shareInteraction,
+                modifier = Modifier
+                    .weight(1f)
+                    .embossedCard(
+                        cornerRadius = 6.dp,
+                        backgroundColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor   = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                border = null,
+                elevation = ButtonDefaults.buttonElevation(0.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    stringResource(R.string.share_button),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     }
 }
@@ -438,4 +489,13 @@ private fun openInCustomTab(context: Context, url: String) {
         .setShowTitle(true)
         .build()
         .launchUrl(context, url.toUri())
+}
+
+/** Open the Android share sheet for the given URL */
+internal fun shareUrl(context: Context, url: String) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, url)
+    }
+    context.startActivity(Intent.createChooser(sendIntent, null))
 }

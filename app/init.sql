@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS urls (
     id SERIAL PRIMARY KEY,
     long_url TEXT NOT NULL,
+    click_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

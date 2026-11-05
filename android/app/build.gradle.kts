@@ -19,7 +19,6 @@ android {
     compileSdk = 37
     buildToolsVersion = "36.0.0"
 
-
     defaultConfig {
         applicationId = "com.ironfleet.urlshortener"
         minSdk = 26
@@ -32,10 +31,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(localProperties.getProperty("KEYSTORE_PATH", "ironfleet-release.jks"))
-            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD", "ironfleet2024")
-            keyAlias = localProperties.getProperty("KEY_ALIAS", "ironfleet-key")
-            keyPassword = localProperties.getProperty("KEY_PASSWORD", "ironfleet2024")
+            storeFile = file(
+                localProperties.getProperty("KEYSTORE_PATH")
+                    ?: error("KEYSTORE_PATH missing from local.properties")
+            )
+            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
+                ?: error("KEYSTORE_PASSWORD missing from local.properties")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+                ?: error("KEY_ALIAS missing from local.properties")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+                ?: error("KEY_PASSWORD missing from local.properties")
         }
     }
 

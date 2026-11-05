@@ -82,7 +82,6 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding)
-                .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 24.dp)
         ) {
 

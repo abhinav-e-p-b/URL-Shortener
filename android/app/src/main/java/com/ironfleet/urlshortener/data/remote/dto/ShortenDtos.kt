@@ -31,3 +31,15 @@ data class ApiErrorResponse(
     @SerializedName("error")
     val error: String
 )
+
+/**
+ * Response body received from GET /stats/<short_code>
+ * Maps to: {"short_code": "abc", "click_count": 42}
+ */
+data class StatsResponse(
+    @SerializedName("short_code")
+    val shortCode: String,
+
+    @SerializedName("click_count")
+    val clickCount: Int
+)
